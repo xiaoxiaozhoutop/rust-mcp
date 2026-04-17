@@ -82,7 +82,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.platform.artifact_name }}
-          path: release/*
+          path: release/${{ matrix.platform.artifact_name }}
           retention-days: 5
 
   create-release:
