@@ -29,7 +29,9 @@ use tracing::info;
 pub async fn run_server_with_config(config: Config) -> Result<()> {
     info!("Starting RustFS MCP Server with provided configuration");
 
-    config.validate().context("Configuration validation failed")?;
+    config
+        .validate()
+        .context("Configuration validation failed")?;
 
     let server = RustfsMcpServer::new(config).await?;
 

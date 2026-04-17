@@ -139,7 +139,8 @@ impl S3Client {
             .as_deref()
             .is_some_and(|endpoint| endpoint.starts_with("http://"))
         {
-            config_builder = config_builder.http_client(SmithyHttpClientBuilder::new().build_http());
+            config_builder =
+                config_builder.http_client(SmithyHttpClientBuilder::new().build_http());
         }
 
         // Set force path style if custom endpoint or explicitly requested
@@ -193,18 +194,27 @@ impl S3Client {
     pub async fn list_buckets(&self) -> Result<Vec<BucketInfo>> {
         debug!("Listing S3 buckets");
 
-        let response = self.client.list_buckets().send().await.context("Failed to list S3 buckets")?;
+        let response = self
+            .client
+            .list_buckets()
+            .send()
+            .await
+            .context("Failed to list S3 buckets")?;
 
         let buckets: Vec<BucketInfo> = response
             .buckets()
             .iter()
             .map(|bucket| {
                 let name = bucket.name().unwrap_or("unknown").to_string();
-                let creation_date = bucket
-                    .creation_date()
-                    .map(|dt| dt.fmt(aws_sdk_s3::primitives::DateTimeFormat::DateTime).unwrap());
+                let creation_date = bucket.creation_date().map(|dt| {
+                    dt.fmt(aws_sdk_s3::primitives::DateTimeFormat::DateTime)
+                        .unwrap()
+                });
 
-                BucketInfo { name, creation_date }
+                BucketInfo {
+                    name,
+                    creation_date,
+                }
             })
             .collect();
 
@@ -212,8 +222,15 @@ impl S3Client {
         Ok(buckets)
     }
 
-    pub async fn list_objects_v2(&self, bucket_name: &str, options: ListObjectsOptions) -> Result<ListObjectsResult> {
-        debug!("Listing objects in bucket '{}' with options: {:?}", bucket_name, options);
+    pub async fn list_objects_v2(
+        &self,
+        bucket_name: &str,
+        options: ListObjectsOptions,
+    ) -> Result<ListObjectsResult> {
+        debug!(
+            "Listing objects in bucket '{}' with options: {:?}",
+            bucket_name, options
+        );
 
         let mut request = self.client.list_objects_v2().bucket(bucket_name);
 
@@ -248,9 +265,10 @@ impl S3Client {
             .map(|obj| {
                 let key = obj.key().unwrap_or("unknown").to_string();
                 let size = obj.size();
-                let last_modified = obj
-                    .last_modified()
-                    .map(|dt| dt.fmt(aws_sdk_s3::primitives::DateTimeFormat::DateTime).unwrap());
+                let last_modified = obj.last_modified().map(|dt| {
+                    dt.fmt(aws_sdk_s3::primitives::DateTimeFormat::DateTime)
+                        .unwrap()
+                });
                 let etag = obj.e_tag().map(|e| e.to_string());
                 let storage_class = obj.storage_class().map(|sc| sc.as_str().to_string());
 
@@ -297,7 +315,10 @@ impl S3Client {
         object_key: &str,
         options: UploadFileOptions,
     ) -> Result<UploadResult> {
-        info!("Starting file upload: '{}' -> s3://{}/{}", local_path, bucket_name, object_key);
+        info!(
+            "Starting file upload: '{}' -> s3://{}/{}",
+            local_path, bucket_name, object_key
+        );
 
         let path = Path::new(local_path);
         let canonical_path = path
@@ -320,7 +341,9 @@ impl S3Client {
         debug!("File size: {file_size} bytes");
 
         let content_type = options.content_type.unwrap_or_else(|| {
-            let detected = mime_guess::from_path(&canonical_path).first_or_octet_stream().to_string();
+            let detected = mime_guess::from_path(&canonical_path)
+                .first_or_octet_stream()
+                .to_string();
             debug!("Auto-detected content type: {detected}");
             detected
         });
@@ -371,10 +394,9 @@ impl S3Client {
         }
 
         debug!("Executing S3 put_object request");
-        let response = request
-            .send()
-            .await
-            .context(format!("Failed to upload file to s3://{bucket_name}/{object_key}"))?;
+        let response = request.send().await.context(format!(
+            "Failed to upload file to s3://{bucket_name}/{object_key}"
+        ))?;
 
         let etag = response.e_tag().unwrap_or("unknown").to_string();
         let version_id = response.version_id().map(|v| v.to_string());
@@ -400,7 +422,12 @@ impl S3Client {
         Ok(upload_result)
     }
 
-    pub async fn get_object(&self, bucket_name: &str, object_key: &str, options: GetObjectOptions) -> Result<GetObjectResult> {
+    pub async fn get_object(
+        &self,
+        bucket_name: &str,
+        object_key: &str,
+        options: GetObjectOptions,
+    ) -> Result<GetObjectResult> {
         info!("Getting object: s3://{}/{}", bucket_name, object_key);
 
         let mut request = self.client.get_object().bucket(bucket_name).key(object_key);
@@ -415,22 +442,28 @@ impl S3Client {
 
         if let Some(if_modified_since) = &options.if_modified_since {
             request = request.if_modified_since(
-                aws_sdk_s3::primitives::DateTime::from_str(if_modified_since, aws_sdk_s3::primitives::DateTimeFormat::DateTime)
-                    .context("Failed to parse if_modified_since date")?,
+                aws_sdk_s3::primitives::DateTime::from_str(
+                    if_modified_since,
+                    aws_sdk_s3::primitives::DateTimeFormat::DateTime,
+                )
+                .context("Failed to parse if_modified_since date")?,
             );
         }
 
         debug!("Executing S3 get_object request");
-        let response = request
-            .send()
-            .await
-            .context(format!("Failed to get object from s3://{bucket_name}/{object_key}"))?;
+        let response = request.send().await.context(format!(
+            "Failed to get object from s3://{bucket_name}/{object_key}"
+        ))?;
 
-        let content_type = response.content_type().unwrap_or("application/octet-stream").to_string();
+        let content_type = response
+            .content_type()
+            .unwrap_or("application/octet-stream")
+            .to_string();
         let content_length = response.content_length().unwrap_or(0) as u64;
-        let last_modified = response
-            .last_modified()
-            .map(|dt| dt.fmt(aws_sdk_s3::primitives::DateTimeFormat::DateTime).unwrap());
+        let last_modified = response.last_modified().map(|dt| {
+            dt.fmt(aws_sdk_s3::primitives::DateTimeFormat::DateTime)
+                .unwrap()
+        });
         let etag = response.e_tag().map(|e| e.to_string());
         let version_id = response.version_id().map(|v| v.to_string());
 
@@ -439,7 +472,11 @@ impl S3Client {
         let mut byte_stream = response.body;
         let mut total_read = 0;
 
-        while let Some(bytes_result) = byte_stream.try_next().await.context("Failed to read object content")? {
+        while let Some(bytes_result) = byte_stream
+            .try_next()
+            .await
+            .context("Failed to read object content")?
+        {
             if total_read + bytes_result.len() > max_size {
                 anyhow::bail!("Object size exceeds maximum allowed size of {max_size} bytes");
             }
@@ -509,11 +546,17 @@ impl S3Client {
         if content_bytes.len() >= 4 {
             match &content_bytes[0..4] {
                 // PNG: 89 50 4E 47
-                [0x89, 0x50, 0x4E, 0x47] => return DetectedFileType::NonText("image/png".to_string()),
+                [0x89, 0x50, 0x4E, 0x47] => {
+                    return DetectedFileType::NonText("image/png".to_string());
+                }
                 // JPEG: FF D8 FF
-                [0xFF, 0xD8, 0xFF, _] => return DetectedFileType::NonText("image/jpeg".to_string()),
+                [0xFF, 0xD8, 0xFF, _] => {
+                    return DetectedFileType::NonText("image/jpeg".to_string());
+                }
                 // GIF: 47 49 46 38
-                [0x47, 0x49, 0x46, 0x38] => return DetectedFileType::NonText("image/gif".to_string()),
+                [0x47, 0x49, 0x46, 0x38] => {
+                    return DetectedFileType::NonText("image/gif".to_string());
+                }
                 // BMP: 42 4D
                 [0x42, 0x4D, _, _] => return DetectedFileType::NonText("image/bmp".to_string()),
                 // RIFF container (WebP/WAV)
@@ -555,7 +598,10 @@ impl S3Client {
         local_path: &str,
         options: GetObjectOptions,
     ) -> Result<(u64, String)> {
-        info!("Downloading object: s3://{}/{} -> {}", bucket_name, object_key, local_path);
+        info!(
+            "Downloading object: s3://{}/{} -> {}",
+            bucket_name, object_key, local_path
+        );
 
         let mut request = self.client.get_object().bucket(bucket_name).key(object_key);
 
@@ -569,23 +615,25 @@ impl S3Client {
 
         if let Some(if_modified_since) = &options.if_modified_since {
             request = request.if_modified_since(
-                aws_sdk_s3::primitives::DateTime::from_str(if_modified_since, aws_sdk_s3::primitives::DateTimeFormat::DateTime)
-                    .context("Failed to parse if_modified_since date")?,
+                aws_sdk_s3::primitives::DateTime::from_str(
+                    if_modified_since,
+                    aws_sdk_s3::primitives::DateTimeFormat::DateTime,
+                )
+                .context("Failed to parse if_modified_since date")?,
             );
         }
 
         debug!("Executing S3 get_object request for download");
-        let response = request
-            .send()
-            .await
-            .context(format!("Failed to get object from s3://{bucket_name}/{object_key}"))?;
+        let response = request.send().await.context(format!(
+            "Failed to get object from s3://{bucket_name}/{object_key}"
+        ))?;
 
         let local_file_path = Path::new(local_path);
 
         if let Some(parent) = local_file_path.parent() {
-            tokio::fs::create_dir_all(parent)
-                .await
-                .context(format!("Failed to create parent directories for {local_path}"))?;
+            tokio::fs::create_dir_all(parent).await.context(format!(
+                "Failed to create parent directories for {local_path}"
+            ))?;
         }
 
         let mut file = tokio::fs::File::create(local_file_path)
@@ -595,7 +643,11 @@ impl S3Client {
         let mut byte_stream = response.body;
         let mut total_bytes = 0u64;
 
-        while let Some(bytes_result) = byte_stream.try_next().await.context("Failed to read object content")? {
+        while let Some(bytes_result) = byte_stream
+            .try_next()
+            .await
+            .context("Failed to read object content")?
+        {
             file.write_all(&bytes_result)
                 .await
                 .context(format!("Failed to write to local file: {local_path}"))?;
@@ -621,7 +673,11 @@ impl S3Client {
     pub async fn health_check(&self) -> Result<()> {
         debug!("Performing S3 health check");
 
-        self.client.list_buckets().send().await.context("S3 health check failed")?;
+        self.client
+            .list_buckets()
+            .send()
+            .await
+            .context("S3 health check failed")?;
 
         debug!("S3 health check passed");
         Ok(())
@@ -707,7 +763,10 @@ mod tests {
         // Test magic bytes detection (now all return NonText)
         let test_cases = vec![
             // PNG magic bytes: 89 50 4E 47
-            (vec![0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A], "image/png"),
+            (
+                vec![0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A],
+                "image/png",
+            ),
             // JPEG magic bytes: FF D8 FF
             (vec![0xFF, 0xD8, 0xFF, 0xE0], "image/jpeg"),
             // GIF magic bytes: 47 49 46 38

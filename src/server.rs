@@ -25,7 +25,9 @@ use serde::{Deserialize, Serialize};
 use tracing::{debug, error, info};
 
 use crate::config::Config;
-use crate::s3_client::{DetectedFileType, GetObjectOptions, ListObjectsOptions, S3Client, UploadFileOptions};
+use crate::s3_client::{
+    DetectedFileType, GetObjectOptions, ListObjectsOptions, S3Client, UploadFileOptions,
+};
 
 #[derive(Serialize, Deserialize, JsonSchema)]
 pub struct ListObjectsRequest {
@@ -76,7 +78,9 @@ pub struct GetObjectRequest {
     #[schemars(description = "Optional version ID for versioned objects")]
     pub version_id: Option<String>,
     #[serde(default = "default_operation_mode")]
-    #[schemars(description = "Operation mode: read (return content) or download (save to local file)")]
+    #[schemars(
+        description = "Operation mode: read (return content) or download (save to local file)"
+    )]
     pub mode: GetObjectMode,
     #[serde(default)]
     #[schemars(description = "Local file path for download mode (required when mode is download)")]
@@ -124,7 +128,10 @@ impl RustfsMcpServer {
 
     #[tool(description = "Create a new S3 bucket with the specified name")]
     pub async fn create_bucket(&self, Parameters(req): Parameters<CreateBucketReqeust>) -> String {
-        info!("Executing create_bucket tool for bucket: {}", req.bucket_name);
+        info!(
+            "Executing create_bucket tool for bucket: {}",
+            req.bucket_name
+        );
 
         match self.s3_client.create_bucket(&req.bucket_name).await {
             Ok(_) => {
@@ -138,7 +145,10 @@ impl RustfsMcpServer {
 
     #[tool(description = "Delete an existing S3 bucket with the specified name")]
     pub async fn delete_bucket(&self, Parameters(req): Parameters<DeleteBucketReqeust>) -> String {
-        info!("Executing delete_bucket tool for bucket: {}", req.bucket_name);
+        info!(
+            "Executing delete_bucket tool for bucket: {}",
+            req.bucket_name
+        );
 
         // check if bucket is empty, if not, can not delete bucket directly.
         let object_result = match self
@@ -148,14 +158,23 @@ impl RustfsMcpServer {
         {
             Ok(result) => result,
             Err(e) => {
-                error!("Failed to list objects in bucket '{}': {:?}", req.bucket_name, e);
-                return format!("Failed to list objects in bucket '{}': {:?}", req.bucket_name, e);
+                error!(
+                    "Failed to list objects in bucket '{}': {:?}",
+                    req.bucket_name, e
+                );
+                return format!(
+                    "Failed to list objects in bucket '{}': {:?}",
+                    req.bucket_name, e
+                );
             }
         };
 
         if !object_result.objects.is_empty() {
             error!("Bucket '{}' is not empty", req.bucket_name);
-            return format!("Failed to delete bucket '{}': bucket is not empty", req.bucket_name);
+            return format!(
+                "Failed to delete bucket '{}': bucket is not empty",
+                req.bucket_name
+            );
         }
 
         // delete the bucket.
@@ -194,7 +213,9 @@ impl RustfsMcpServer {
 
                 result_text.push_str("---\n");
                 result_text.push_str(&format!("Total buckets: {}\n", buckets.len()));
-                result_text.push_str("Note: Only buckets accessible with the current AWS credentials are shown.");
+                result_text.push_str(
+                    "Note: Only buckets accessible with the current AWS credentials are shown.",
+                );
 
                 info!("list_buckets tool executed successfully");
                 result_text
@@ -217,7 +238,10 @@ impl RustfsMcpServer {
 
     #[tool(description = "List objects in a specific S3 bucket with optional prefix filtering")]
     pub async fn list_objects(&self, Parameters(req): Parameters<ListObjectsRequest>) -> String {
-        info!("Executing list_objects tool for bucket: {}", req.bucket_name);
+        info!(
+            "Executing list_objects tool for bucket: {}",
+            req.bucket_name
+        );
 
         let options = ListObjectsOptions {
             prefix: req.prefix.clone(),
@@ -226,7 +250,11 @@ impl RustfsMcpServer {
             ..ListObjectsOptions::default()
         };
 
-        match self.s3_client.list_objects_v2(&req.bucket_name, options).await {
+        match self
+            .s3_client
+            .list_objects_v2(&req.bucket_name, options)
+            .await
+        {
             Ok(result) => {
                 debug!(
                     "Successfully retrieved {} objects and {} common prefixes from bucket '{}'",
@@ -236,14 +264,21 @@ impl RustfsMcpServer {
                 );
 
                 if result.objects.is_empty() && result.common_prefixes.is_empty() {
-                    let prefix_msg = req.prefix.as_ref().map(|p| format!(" with prefix '{p}'")).unwrap_or_default();
+                    let prefix_msg = req
+                        .prefix
+                        .as_ref()
+                        .map(|p| format!(" with prefix '{p}'"))
+                        .unwrap_or_default();
                     return format!(
                         "No objects found in bucket '{}'{prefix_msg}. The bucket may be empty or the prefix may not match any objects.",
                         req.bucket_name
                     );
                 }
 
-                let mut result_text = format!("Found {} object(s) in bucket **{}**", result.key_count, req.bucket_name);
+                let mut result_text = format!(
+                    "Found {} object(s) in bucket **{}**",
+                    result.key_count, req.bucket_name
+                );
 
                 if let Some(ref p) = req.prefix {
                     result_text.push_str(&format!(" with prefix '{p}'"));
@@ -286,7 +321,9 @@ impl RustfsMcpServer {
                 if result.is_truncated {
                     result_text.push_str("**Note:** Results are truncated. ");
                     if let Some(ref token) = result.next_continuation_token {
-                        result_text.push_str(&format!("Use continuation token '{token}' to get more results.\n"));
+                        result_text.push_str(&format!(
+                            "Use continuation token '{token}' to get more results.\n"
+                        ));
                     }
                     result_text.push('\n');
                 }
@@ -302,11 +339,17 @@ impl RustfsMcpServer {
                     result_text.push_str(&format!(", Max keys: {max_keys}"));
                 }
 
-                info!("list_objects tool executed successfully for bucket '{}'", req.bucket_name);
+                info!(
+                    "list_objects tool executed successfully for bucket '{}'",
+                    req.bucket_name
+                );
                 result_text
             }
             Err(e) => {
-                error!("Failed to list objects in bucket '{}': {:?}", req.bucket_name, e);
+                error!(
+                    "Failed to list objects in bucket '{}': {:?}",
+                    req.bucket_name, e
+                );
 
                 format!(
                     "Failed to list objects in S3 bucket '{}': {}\n\nPossible causes:\n\
@@ -344,7 +387,11 @@ impl RustfsMcpServer {
             ..GetObjectOptions::default()
         };
 
-        match self.s3_client.get_object(&req.bucket_name, &req.object_key, options).await {
+        match self
+            .s3_client
+            .get_object(&req.bucket_name, &req.object_key, options)
+            .await
+        {
             Ok(result) => {
                 debug!(
                     "Successfully retrieved object s3://{}/{} ({} bytes)",
@@ -360,7 +407,11 @@ impl RustfsMcpServer {
                                  **File Size:** {} bytes\n\
                                  **Content Type:** {}\n\n\
                                  **Content:**\n```\n{}\n```",
-                                result.bucket, result.key, result.content_length, result.content_type, text_content
+                                result.bucket,
+                                result.key,
+                                result.content_length,
+                                result.content_type,
+                                text_content
                             )
                         } else {
                             format!(
@@ -370,7 +421,10 @@ impl RustfsMcpServer {
                                  **Content Type:** {}\n\n\
                                  **Note:** Could not decode file as UTF-8 text. \
                                  Try using download mode instead.",
-                                result.bucket, result.key, result.content_length, result.content_type
+                                result.bucket,
+                                result.key,
+                                result.content_length,
+                                result.content_type
                             )
                         }
                     }
@@ -404,7 +458,10 @@ impl RustfsMcpServer {
                 }
             }
             Err(e) => {
-                error!("Failed to read object s3://{}/{}: {:?}", req.bucket_name, req.object_key, e);
+                error!(
+                    "Failed to read object s3://{}/{}: {:?}",
+                    req.bucket_name, req.object_key, e
+                );
                 self.format_error_message(&req, e)
             }
         }
@@ -521,7 +578,12 @@ impl RustfsMcpServer {
 
         match self
             .s3_client
-            .upload_file(&req.local_file_path, &req.bucket_name, &req.object_key, options)
+            .upload_file(
+                &req.local_file_path,
+                &req.bucket_name,
+                &req.object_key,
+                options,
+            )
             .await
         {
             Ok(result) => {
@@ -594,7 +656,12 @@ impl RustfsMcpServer {
                      **File:** {}\n\
                      **Bucket:** {}\n\
                      **Object Key:** {}",
-                    req.local_file_path, req.bucket_name, e, req.local_file_path, req.bucket_name, req.object_key
+                    req.local_file_path,
+                    req.bucket_name,
+                    e,
+                    req.local_file_path,
+                    req.bucket_name,
+                    req.object_key
                 )
             }
         }
@@ -605,8 +672,13 @@ impl RustfsMcpServer {
 impl ServerHandler for RustfsMcpServer {
     fn get_info(&self) -> ServerInfo {
         ServerInfo::new(ServerCapabilities::builder().enable_tools().build())
-            .with_instructions("RustFS MCP Server providing S3 operations through Model Context Protocol")
-            .with_server_info(Implementation::new("rustfs-mcp-server", env!("CARGO_PKG_VERSION")))
+            .with_instructions(
+                "RustFS MCP Server providing S3 operations through Model Context Protocol",
+            )
+            .with_server_info(Implementation::new(
+                "rustfs-mcp-server",
+                env!("CARGO_PKG_VERSION"),
+            ))
             .with_protocol_version(ProtocolVersion::LATEST)
     }
 

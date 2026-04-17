@@ -104,7 +104,9 @@ impl Config {
 
     pub fn validate(&self) -> Result<()> {
         if self.access_key_id.is_none() {
-            anyhow::bail!("AWS Access Key ID is required. Set via --access-key-id or AWS_ACCESS_KEY_ID environment variable");
+            anyhow::bail!(
+                "AWS Access Key ID is required. Set via --access-key-id or AWS_ACCESS_KEY_ID environment variable"
+            );
         }
 
         if self.secret_access_key.is_none() {
@@ -117,7 +119,9 @@ impl Config {
     }
 
     pub fn access_key_id(&self) -> &str {
-        self.access_key_id.as_ref().expect("Access key ID should be validated")
+        self.access_key_id
+            .as_ref()
+            .expect("Access key ID should be validated")
     }
 
     pub fn secret_access_key(&self) -> &str {
@@ -208,7 +212,12 @@ mod tests {
 
         let result = config.validate();
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Secret Access Key"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Secret Access Key")
+        );
     }
 
     #[test]

@@ -78,7 +78,8 @@ fn init_tracing(config: &Config) -> Result<()> {
         .with_writer(std::io::stderr) // Force logs to stderr to avoid interfering with MCP protocol on stdout
         .finish();
 
-    tracing::subscriber::set_global_default(subscriber).context("Failed to set global tracing subscriber")?;
+    tracing::subscriber::set_global_default(subscriber)
+        .context("Failed to set global tracing subscriber")?;
 
     Ok(())
 }
@@ -99,6 +100,8 @@ fn print_usage_help() {
     eprintln!("  rustfs-mcp");
     eprintln!();
     eprintln!("  # For local development with RustFS");
-    eprintln!("  rustfs-mcp --access-key-id minioadmin --secret-access-key minioadmin --endpoint-url http://localhost:9000");
+    eprintln!(
+        "  rustfs-mcp --access-key-id minioadmin --secret-access-key minioadmin --endpoint-url http://localhost:9000"
+    );
     eprintln!();
 }
