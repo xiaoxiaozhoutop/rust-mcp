@@ -132,9 +132,9 @@ jobs:
           prerelease: ${{ contains(steps.version.outputs.VERSION, 'alpha') || contains(steps.version.outputs.VERSION, 'beta') || contains(steps.version.outputs.VERSION, 'rc') }}
           generate_release_notes: true
           files: |
-            rustfs-mcp-linux-x86_64
-            rustfs-mcp-macos-x86_64
-            rustfs-mcp-macos-aarch64
-            rustfs-mcp-windows-x86_64.exe
+            artifacts/rustfs-mcp-linux-x86_64
+            artifacts/rustfs-mcp-macos-x86_64
+            artifacts/rustfs-mcp-macos-aarch64
+            artifacts/rustfs-mcp-windows-x86_64.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
