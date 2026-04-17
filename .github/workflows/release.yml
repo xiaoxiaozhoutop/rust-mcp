@@ -113,8 +113,11 @@ jobs:
           cd artifacts
           for artifact in */; do
             for file in "$artifact"/*; do
-              [ -f "$file" ] && mv "$file" .
+              [ -f "$file" ] && mv "$file" "./_artifact_$(basename "$file")"
             done
+          done
+          for f in _artifact_*; do
+            mv "$f" "${f#_artifact_}"
           done
           rm -rf */
 
