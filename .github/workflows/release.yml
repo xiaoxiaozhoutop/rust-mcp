@@ -1,0 +1,139 @@
+# Copyright 2024 RustFS Team
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g., v1.0.0)'
+        required: false
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: --cfg tokio_unstable
+
+concurrency:
+  group: release-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Release ${{ matrix.platform }}
+    runs-on: ${{ matrix.platform.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - runner: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact_name: rustfs-mcp-linux-x86_64
+          - runner: macos-latest
+            target: x86_64-apple-darwin
+            artifact_name: rustfs-mcp-macos-x86_64
+          - runner: macos-latest
+            target: aarch64-apple-darwin
+            artifact_name: rustfs-mcp-macos-aarch64
+          - runner: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact_name: rustfs-mcp-windows-x86_64.exe
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform.target }}
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build release binary
+        run: |
+          cargo build --release --locked --target ${{ matrix.platform.target }}
+
+      - name: Package binary
+        shell: bash
+        run: |
+          mkdir -p release
+          cp target/${{ matrix.platform.target }}/release/rustfs-mcp${{ matrix.platform.target == 'x86_64-pc-windows-msvc' && '.exe' || '' }} release/${{ matrix.platform.artifact_name }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.platform.artifact_name }}
+          path: release/*
+          retention-days: 5
+
+  create-release:
+    name: Create GitHub Release
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      release_id: ${{ steps.create_release.outputs.id }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: List artifacts
+        run: ls -la artifacts/
+
+      - name: Prepare artifacts for upload
+        run: |
+          cd artifacts
+          for dir in */; do
+            filename=$(basename "$dir")
+            if [ -f "$dir$filename" ]; then
+              mv "$dir$filename" "$filename"
+            elif [ -f "$dir" ]; then
+              find "$dir" -type f -exec mv {} . \;
+            fi
+          done
+          rm -rf */
+
+      - name: Get version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.VERSION }}
+          name: Release ${{ env.VERSION }}
+          draft: false
+          prerelease: ${{ contains(env.VERSION, 'alpha') || contains(env.VERSION, 'beta') || contains(env.VERSION, 'rc') }}
+          generate_release_notes: true
+          files: |
+            artifacts/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
