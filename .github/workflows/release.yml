@@ -105,13 +105,18 @@ jobs:
           path: artifacts
 
       - name: List artifacts
-        run: ls -la artifacts/
+        run: |
+          ls -laR artifacts/
 
       - name: Prepare artifacts for upload
         run: |
           cd artifacts
-          find . -type f -mindepth 2 -maxdepth 2 -exec mv {} . \;
-          find . -type d -mindepth 2 -maxdepth 2 -exec rmdir {} \; 2>/dev/null || true
+          for artifact in */; do
+            for file in "$artifact"/*; do
+              [ -f "$file" ] && mv "$file" .
+            done
+          done
+          rm -rf */
 
       - name: Get version from tag
         id: version
