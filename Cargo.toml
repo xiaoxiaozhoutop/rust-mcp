@@ -14,12 +14,13 @@
 
 [package]
 name = "rustfs-mcp"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
-repository.workspace = true
-rust-version.workspace = true
-homepage.workspace = true
+version = "0.0.5"
+edition = "2024"
+license = "Apache-2.0"
+repository = "https://github.com/rustfs/mcp"
+rust-version = "1.93.0"
+authors = ["RustFS Team"]
+homepage = "https://rustfs.com"
 description = "RustFS MCP (Model Context Protocol) Server"
 keywords = ["mcp", "s3", "aws", "rustfs", "server"]
 categories = ["development-tools", "web-programming"]
@@ -29,35 +30,45 @@ documentation = "https://docs.rs/rustfs-mcp/latest/rustfs_mcp/"
 name = "rustfs-mcp"
 path = "src/main.rs"
 
+[lints.rust]
+unsafe_code = "warn"
+unused = "warn"
+
+[lints.clippy]
+all = "warn"
+needless_borrow = "warn"
+redundant_closure = "warn"
+
 [dependencies]
 # AWS SDK for S3 operations
-aws-sdk-s3.workspace = true
-aws-smithy-http-client.workspace = true
+aws-sdk-s3 = { version = "1.129.0", default-features = false, features = ["sigv4a", "default-https-client", "rt-tokio"] }
+aws-smithy-http-client = { version = "1.1.12", default-features = false, features = ["default-client", "rustls-aws-lc"] }
 
 # Async runtime and utilities
-tokio = { workspace = true, features = ["io-std", "io-util", "macros", "signal"] }
+tokio = { version = "1.52.1", default-features = false, features = ["fs", "io-std", "io-util", "macros", "rt-multi-thread", "io-uring"] }
 
 # MCP SDK with macros support
-rmcp = { workspace = true, features = ["server", "transport-io", "macros"] }
+rmcp = { version = "1.5.0", default-features = false, features = ["server", "transport-io", "macros"] }
 
 # Command line argument parsing
-clap = { workspace = true, features = ["derive", "env"] }
+clap = { version = "4.6.1", features = ["derive", "env"] }
 
 # Serialization (still needed for S3 data structures)
-serde.workspace = true
-serde_json.workspace = true
-schemars = { workspace = true }
+serde = { version = "1.0.228", features = ["derive"] }
+schemars = "1.2.1"
 
 # Error handling
-anyhow.workspace = true
+anyhow = { version = "1.0.102" }
 
 # Logging
-tracing.workspace = true
-tracing-subscriber.workspace = true
+tracing = { version = "0.1.44" }
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 
 # File handling and MIME type detection
-mime_guess = { workspace = true }
+mime_guess = { version = "2.0.5" }
 
 [lib]
 doctest = false
-# Testing framework and utilities
+
+[dev-dependencies]
+serde_json = { version = "1.0.149" }
