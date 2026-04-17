@@ -111,14 +111,13 @@ jobs:
         run: |
           cd artifacts
           for dir in */; do
-            filename=$(basename "$dir")
-            if [ -f "$dir$filename" ]; then
-              mv "$dir$filename" "$filename"
-            elif [ -f "$dir" ]; then
-              find "$dir" -type f -exec mv {} . \;
-            fi
+            cd "$dir"
+            for file in *; do
+              mv "$file" "../$file"
+            done
+            cd ..
+            rmdir "$dir"
           done
-          rm -rf */
 
       - name: Get version from tag
         id: version
